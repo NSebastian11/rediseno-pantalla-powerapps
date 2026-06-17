@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { ChangeEvent, DragEvent, useRef, useState } from 'react';
 import { Save, Send, Plus, Trash2, FileText, Upload, AlertCircle, CheckCircle } from 'lucide-react';
 
 interface Participant {
@@ -72,6 +72,7 @@ export default function FollowUpReport({ onBack }: FollowUpReportProps) {
   const [projectMode, setProjectMode] = useState<'select' | 'manual'>('select');
   const [selectedProject, setSelectedProject] = useState('');
   const [manualProject, setManualProject] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [participants, setParticipants] = useState<Participant[]>([
     { id: '1', tipo: '', nacionalidad: '', horasProgramadas: '', fechaInicio: '', fechaFin: '', tipoDoc: '', numeroDoc: '', nombres: '', carrera: '' }
@@ -199,6 +200,14 @@ export default function FollowUpReport({ onBack }: FollowUpReportProps) {
   const removeParticipant = (id: string) => {
     setParticipants(participants.filter(p => p.id !== id));
   };
+  
+  const updateParticipant = (id: string, field: keyof Participant, value: string) => {
+    setParticipants(prev =>
+      prev.map(participant =>
+        participant.id === id ? { ...participant, [field]: value } : participant
+      )
+    );
+  };
 
   const addBudgetItem = (catId: string) => {
     setBudgetCategories(cats =>
@@ -256,6 +265,44 @@ export default function FollowUpReport({ onBack }: FollowUpReportProps) {
   };
   const updateCounterparty = (id: string, field: keyof Counterparty, value: string) => {
     setCounterparties(counterparties.map(c => c.id === id ? { ...c, [field]: value } : c));
+  };
+  
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+  
+  const handleFileSelection = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const selectedFiles: UploadedFile[] = Array.from(files).map((file, index) => ({
+      id: `${Date.now()}-${index}`,
+      nombre: file.name,
+      tipo: file.type || 'Archivo',
+      tamano: formatFileSize(file.size),
+      fecha: new Date().toLocaleDateString('es-ES')
+    }));
+    setUploadedFiles(prev => [...prev, ...selectedFiles]);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+  
+  const handleFileInputChange = (event: ChangeEvent<HTMLInputElement>) => {
+    handleFileSelection(event.target.files);
+  };
+  
+  const handleDropFiles = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    handleFileSelection(event.dataTransfer.files);
+  };
+  
+  const openFilePicker = () => {
+    fileInputRef.current?.click();
+  };
+  
+  const removeUploadedFile = (id: string) => {
+    setUploadedFiles(prev => prev.filter(file => file.id !== id));
   };
 
   // Estudiantes
@@ -991,14 +1038,61 @@ export default function FollowUpReport({ onBack }: FollowUpReportProps) {
 
                 {participants.map((participant, index) => (
                   <div key={participant.id} className={`grid grid-cols-10 gap-2 p-3 border-b border-[#E1E4E8] ${index % 2 === 0 ? 'bg-[#F5F7FA]' : 'bg-white'}`}>
-                    <input type="text" className="px-3 py-2 border border-[#D0D5DD] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#003366]" placeholder="Tipo" />
-                    <input type="text" className="px-3 py-2 border border-[#D0D5DD] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#003366]" placeholder="País" />
-                    <input type="number" min="0" className="px-3 py-2 border border-[#D0D5DD] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#003366]" placeholder="0" />
-                    <input type="date" className="px-3 py-2 border border-[#D0D5DD] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#003366]" />
-                    <input type="date" className="px-3 py-2 border border-[#D0D5DD] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#003366]" />
-                    <input type="text" className="px-3 py-2 border border-[#D0D5DD] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#003366]" placeholder="CI/Pasap." />
-                    <input type="text" className="px-3 py-2 border border-[#D0D5DD] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#003366]" placeholder="Número" />
-                    <input type="text" className="col-span-2 px-3 py-2 border border-[#D0D5DD] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#003366]" placeholder="Nombre completo" />
+                    <input
+                      type="text"
+                      value={participant.tipo}
+                      onChange={(e) => updateParticipant(participant.id, 'tipo', e.target.value)}
+                      className="px-3 py-2 border border-[#D0D5DD] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                      placeholder="Tipo"
+                    />
+                    <input
+                      type="text"
+                      value={participant.nacionalidad}
+                      onChange={(e) => updateParticipant(participant.id, 'nacionalidad', e.target.value)}
+                      className="px-3 py-2 border border-[#D0D5DD] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                      placeholder="País"
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      value={participant.horasProgramadas}
+                      onChange={(e) => updateParticipant(participant.id, 'horasProgramadas', e.target.value)}
+                      className="px-3 py-2 border border-[#D0D5DD] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                      placeholder="0"
+                    />
+                    <input
+                      type="date"
+                      value={participant.fechaInicio}
+                      onChange={(e) => updateParticipant(participant.id, 'fechaInicio', e.target.value)}
+                      className="px-3 py-2 border border-[#D0D5DD] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                    />
+                    <input
+                      type="date"
+                      value={participant.fechaFin}
+                      onChange={(e) => updateParticipant(participant.id, 'fechaFin', e.target.value)}
+                      className="px-3 py-2 border border-[#D0D5DD] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                    />
+                    <input
+                      type="text"
+                      value={participant.tipoDoc}
+                      onChange={(e) => updateParticipant(participant.id, 'tipoDoc', e.target.value)}
+                      className="px-3 py-2 border border-[#D0D5DD] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                      placeholder="CI/Pasap."
+                    />
+                    <input
+                      type="text"
+                      value={participant.numeroDoc}
+                      onChange={(e) => updateParticipant(participant.id, 'numeroDoc', e.target.value)}
+                      className="px-3 py-2 border border-[#D0D5DD] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                      placeholder="Número"
+                    />
+                    <input
+                      type="text"
+                      value={participant.nombres}
+                      onChange={(e) => updateParticipant(participant.id, 'nombres', e.target.value)}
+                      className="col-span-2 px-3 py-2 border border-[#D0D5DD] rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#003366]"
+                      placeholder="Nombre completo"
+                    />
                     <button
                       onClick={() => removeParticipant(participant.id)}
                       className="flex items-center justify-center p-2 text-red-500 hover:bg-red-50 rounded transition-colors"
@@ -1157,7 +1251,19 @@ export default function FollowUpReport({ onBack }: FollowUpReportProps) {
             </div>
 
             {/* Adjuntar archivos */}
-            <div className="border-2 border-dashed border-[#D0D5DD] rounded-lg p-8 text-center hover:border-[#003366] transition-colors cursor-pointer mb-6">
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={handleFileInputChange}
+            />
+            <div
+              onClick={openFilePicker}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={handleDropFiles}
+              className="border-2 border-dashed border-[#D0D5DD] rounded-lg p-8 text-center hover:border-[#003366] transition-colors cursor-pointer mb-6"
+            >
               <Upload size={48} className="mx-auto mb-4 text-[#344054]" />
               <p className="text-[#344054] font-medium mb-2">Adjuntar archivos</p>
               <p className="text-sm text-[#344054]/70">Haga clic para seleccionar o arrastre los archivos aquí</p>
@@ -1179,7 +1285,10 @@ export default function FollowUpReport({ onBack }: FollowUpReportProps) {
                           <p className="text-xs text-[#667085]">{file.tipo} • {file.tamano} • {file.fecha}</p>
                         </div>
                       </div>
-                      <button className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors">
+                      <button
+                        onClick={() => removeUploadedFile(file.id)}
+                        className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors"
+                      >
                         <Trash2 size={16} />
                       </button>
                     </div>
